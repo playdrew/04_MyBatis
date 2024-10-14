@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <!--configuration 과 environment 사이에 resource로 경로 작성-->
+
+    <properties resource = "config/connection-info.properties"/>
+
+    <!--MENUDTO를 별칭을 지어주었으므로 경로대신 별칭사용-->
+    <typeAliases>
+        <typeAlias type="com.ohgiraffers.common.MenuDTO" alias="MenuDTO"/>
+        <typeAlias type="com.ohgiraffers.common.SearchCriteria" alias="Search"/>
+    </typeAliases>
+
+    <environments default="dev">
+        <environment id="dev">
+            <transactionManager type="JDBC"></transactionManager>
+            <dataSource type="POOLED">
+                <!--${} 중괄호안에 우리가 불러올 키값을 적습니다.-->
+                <!--properties 파일에 변수처리를 해서 이렇게 만들어 두면 민감한 정보를 은닉하고 바인딩해요-->
+                <property name="driver" value="${driver}"/>
+                <property name="url" value="${url}"/>
+                <property name="username" value="${username}"/>
+                <property name="password" value="${password}"/>
+            </dataSource>
+        </environment>
+    </environments>
+    <!--mapper 한 다음에 파일명을 썼는데 패키지란 속성이 있어요 패키지의 장점은 각자 mapper 해가지고 용운 이정매퍼할 필요없이 하위파일들은 알아서 등록되므로 생략가능하게됩니다.-->
+    <mappers>
+        <package name="com.ohgiraffers.section01.dynamic"/>
+    </mappers>
+</configuration>

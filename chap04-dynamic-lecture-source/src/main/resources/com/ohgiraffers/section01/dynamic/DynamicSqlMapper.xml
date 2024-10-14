@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.section01.dynamic.DynamicSqlMapper">
+
+    <!--
+        comment. 6000원일땐 0~10000원 조건절 동작 12000원이다 10000~20000원 조건절 동작 등등
+        넘겨받는 price가 0~10000 원 사이일때, 10000~20000원 사이일때,
+        20000~30000원 사이일때, 30000원 초과일 때
+    -->
+
+    <!--comment 별칠 설정 config com.ohgiraffers.common.MenuDTO 에서 별칭사용으로 MenuDTO로 바꿨다-->
+    <!--쿼리를 활용하기 위해 값을 넣어주어야 하는데요 -->
+    <resultMap id="menuResultMap" type="MenuDTO">
+        <id property="code" column="MENU_CODE"/>
+        <result property="name" column="MENU_NAME"/>
+        <result property="price" column="MENU_PRICE"/>
+        <result property="categoryCode" column="CATEGORY_CODE"/>
+        <result property="orderableStatus" column="ORDERABLE_STATUS"/>
+    </resultMap>
+
+
+    <!-- comment. <if>태그 : test 속성의 조건에 해당 할 때만 엘리먼트 구문을 쿼리에 추가
+                  gte(크거나같은), gt(보다큰), lte(작거나같은), lt(보다작은) 등등
+                  <![CDATA[문장]]> 문장에 해당하는 공간에서는 부등호 표현이 자유롭다-->
+    <!--매개변수로 맵을 보내고 있기에 parameterType으로 hashmap으로 적었습니다.-->
+    <select id="selectMenuByPrice" parameterType="hashmap" resultMap="menuResultMap">
+        SELECT
+            MENU_CODE,
+            MENU_NAME,
+            MENU_PRICE,
+            CATEGORY_CODE,
+            ORDERABLE_STATUS
+        FROM
+            TBL_MENU
+        WHERE
+            ORDERABLE_STATUS = 'Y'
+        <!--if는 어트리뷰트가 반드시 필요하데요 그리고 맵으로 전달했던 price 라는 키값이 -->
+        <!--대소비교를 할때 <> 꺽새를 사용하면 안됩니다. 왜냐하면 꺽새가 다른 곳에서 사용되기 때문입니다-->
+        <!--우리가 전달한 price 값을 사용합니다.-->
+        <if test = "price gte 0 and price lte 10000">
+            <![CDATA[
+                AND MENU_PRICE < ${price}
+            ]]>
+        </if>
+        <if test="price gte 10000 and price lte 20000">
+            <!--사잇값을 쓸때는 Between 사용가능-->
+            AND MENU_PRICE BETWEEN 10000 AND ${price}
+        </if>
+        <if test="price gte 20000 and price lte 30000">
+            <!--사잇값을 쓸때는 Between 사용가능-->
+            AND MENU_PRICE BETWEEN 20000 AND ${price}
+        </if>
+        <if test="price gte 30000">
+            <!--사잇값을 쓸때는 Between 사용가능-->
+            AND MENU_PRICE BETWEEN 30000 AND ${price}
+        </if>
+        ORDER BY MENU_CODE
+    </select>
+    <!--파라미터는 클래스입니다-->
+    <!--
+        condition 이라는 변수에 만약 메뉴와 카테고리를 입력 할 수 있는데
+        메뉴로 선택을 하면, join 할 필요 없이 검색어에 해당하는 메뉴 조회
+        condition 이라는 변수에 카테고리로 선택을 하면
+        join 해서 카테고리명에 해당하는 메뉴 조회
+    -->
+    <!--스캐너에서 메뉴네임이라 입력했다 그럼 카테고리코드 필요없이니 붕어빵치면 붕어빵이란 이름가진 것들 가지고하구 카테고리를 하면 조인을 해서 예로 한식카테고리적어서
+        불러오는 역할을 합니다-->
+    <select id="searchMenu" parameterType="com.ohgiraffers.common.SearchCriteria" resultMap="menuResultMap">
+        SELECT
+        A.MENU_CODE,
+        A.MENU_NAME,
+        A.MENU_PRICE,
+        A.CATEGORY_CODE,
+        A.ORDERABLE_STATUS
+        FROM
+        TBL_MENU A
+        <if test="condition == 'category'">
+            JOIN TBL_CATEGORY B ON (A.CATEGORY_CODE = B.CATEGORY_CODE)
+        </if>
+        WHERE
+        A.ORDERABLE_STATUS = 'Y'
+        <if test="condition == 'menuName'">
+            AND A.MENU_NAME LIKE CONCAT('%', #{value}, '%')
+        </if>
+        <if test="condition == 'category'">
+            AND B.CATEGORY_NAME = #{value}
+        </if>
+        ORDER BY
+        A.MENU_CODE
+    </select>
+    <!--
+        comment.
+            <choose>(when/otherwise) 태그 : java 의 switch-case 문의 역할
+            <choose>
+                <when test="조건">
+                    쿼리문
+                </when>
+            </choose>
+            (...)
+            <otherwise>
+                    쿼리문
+            </otherwise>
+
+            ! (...)은 when 구문이 여러개 될수 있다는 뜻입니다
+            ! otherwise 는 default 입니다.
+            test 속성 조건에 부합하면 해당하는 when 구문의 쿼리를 수행
+            어떠한 when 구문의 조건도 만족하지 못하면 otherwise 구문의
+            쿼리문 수행
+    -->
+    <select id="searchMenuBySupCategory" parameterType="com.ohgiraffers.common.SearchCriteria" resultMap="menuResultMap">
+        SELECT
+            *
+        FROM
+            TBL_MENU
+        WHERE
+            ORDERABLE_STATUS = 'Y'
+        <choose>
+            <when test="value=='식사'">
+                <!--카테고리코드가 1 4 5 를 포함하고 있는지-->
+                AND CATEGORY_CODE IN (1,4,5)
+            </when>
+            <when test="value=='음료'">
+                AND CATEGORY_CODE IN (2)
+            </when>
+            <otherwise>
+                AND CATEGORY_CODE IN (3)
+            </otherwise>
+        </choose>
+        ORDER BY MENU_CODE
+    </select>
+
+    <!-- comment.
+            <foreach>태그 : java 했던 for문 역할을 한다.
+            1. collection 속성 : 반복을 수행할 대상
+            2. item 속성 : 반복을 수행 할 때마다 꺼내올 값을 담아둘 변수
+            3. open 속성 : <foreach> 엘리먼트 구문의 가장 앞에 올 문자
+            4. separator(구분자) 속성 : 반복이 수행될 때 꺼내온 item 사이에 들어갈 문자
+            5. close 속성 : <foreach> 엘리먼트구문의 마지막에 올 문자
+            -->
+    
+    <select id="searchMenuByRandomCode" parameterType="hashmap" resultMap="menuResultMap">
+        SELECT
+            *
+        FROM 
+            TBL_MENU
+        WHERE
+            ORDERABLE_STATUS = 'Y'
+        AND
+            <!--MENU_CODE IN (1,2,3,4,5)-->
+            MENU_CODE IN
+        <!--list 타입으로 값을 묶어준 것을 collection = ""에 기입 -->
+        <!--향상된 for문의 오른쪽 item -->
+        <!--randomCodeList 의 값을 item 에 담긴다음에 모든 반복이 끝나면 open의 close로 닫아줍니다. separator는 구분해주는 역할의 키워드인듯-->
+        <!--open에 close 를 넣지 않았다 그럼 sql 신텍스 오류가 발생 separator 가 없으면 12314 이런 식으로 뜸-->
+        <!--collection="randomCodeList" 라는 키 값을 menuCode 로 순회한다-->
+        <foreach collection="randomCodeList" item="menuCode" open = "(" close=")" separator=",">
+            #{menuCode}
+        </foreach>
+    </select>
+    <!--parameter 타입에 풀로 쓰긴 귀찮으니까 별칭생성 mybatis-config.xml 쪽에서 Search-->
+    <!--검색조건이 없으면 전체조회 , 있으면 menuCode 로 조회-->
+    <select id="searchMenuByCodeOrSearchAll" parameterType="Search" resultMap="menuResultMap">
+        SELECT
+            *
+        FROM
+            TBL_MENU
+        <if test="condition != null and condition eq 'menuCode'">
+            <where>
+                MENU_CODE = #{value}
+            </where>
+        </if>
+    </select>
+    <select id="searchMenuByNameOrCategory" parameterType="hashmap" resultMap="menuResultMap">
+        SELECT
+            *
+        FROM
+            TBL_MENU
+        <!--아무런 검색조건을 넘기지 않으면 전체 조회하고 땡이에요-->
+        <!--Index 1. 문제상황 : 카테고리로만 조회하는 경우 WHERE 생략으로 인한 문법 오류 발생-->
+        <!--IF문 네임벨류절은 생략되고 FROM TBL_MENU AND CATEGORY_CODE 라 읽혀서 에러-->
+<!--        이름은 정상적으로 입력됨-->
+<!--        <if test="nameValue != null">-->
+<!--                WHERE MENU_NAEM LIKE CONCAT ('%,#{nameValue},'%')-->
+<!--        </if>-->
+<!--        <if test="categoryValue != null">-->
+<!--            AND CATEGORY_CODE = #{categoryValue}-->
+<!--        </if>-->
+        <!--comment. 1. 문제해결방안<where> 태그 사용-->
+        <!--where 태그
+                - 내부에 구문이 where 절로 시작하지 않으면 자동으로 where 붙여준다
+                - 또한, where 엘리먼트 내부에 모든 쿼리문이 동작하지 않는다면 where는 무시한다.(네임벨류 카테고리코드문안되면 무시
+                - 주의점은 쿼리문에 where 를 직접 입력하면 where where 구문이 되므로 주의
+                - 엘리먼트 구문이 AND || OR 로 시작하면 자동으로 지워준다.-->
+        <!---->
+        <!--해당하는 첫구문(nameValue)이 무시되면 AND CATEGORY_CODE 의 AND 가 무시되는 것 -->
+
+<!--        <where>-->
+<!--            <if test="nameValue != null">-->
+<!--                MENU_NAME LIKE CONCAT ('%',#{nameValue},'%')-->
+<!--            </if>-->
+<!--            <if test="categoryValue != null">-->
+<!--                AND CATEGORY_CODE = #{categoryValue}-->
+<!--            </if>-->
+<!--        </where>-->
+
+        <!--comment 2. 문제해결방안 <trim> 태그사용
+                trim 태그
+                - where 엘리먼트가 기본적으로 처리하는 기능 외에 추가적인 기능을 수행한다.
+                - 조회 조건에 AND || OR 로 시작하지 않는, 다른 문자로 시작하는 경우
+                - 1. prefix 속성 : 처리 후 엘리먼트의 내용이 있으면 가장 앞에 붙여주는 내용
+                - 2. prefixOverride : 처리 후 엘리먼트의 내용이 있으면 가장 앞에 속성 값에 해당하는 문자 삭제
+                - 3. suffix 속성 : 처리 후 엘리먼트의 내용이 있으면 가장 뒤에 붙여주는 내용 기술
+                - 4. suffixOverride 속성 : 처리 후 엘리먼트 내용 중 가장 뒤에 속성 값에 해당하는 문자 삭제
+                -->
+
+<!--        where 가 필요하고 첫번째 if 문이 필요하면 and 문을 없애주어야 겠죠 -->
+        <!--        WHERE라는 것을 가장 앞에 붙여주고 해당하는 첫번째 구문을 무시한다 AND 나 OR 를 지정한 문자타입이 있는지 검색해요
+있으면 문법상 오류있으니 없애주는 역할을 합니다. WHERE 방식으로 했던 것을 TRIM 방식으로 옮겨본것-->
+
+        <trim prefix="WHERE" prefixOverrides="AND | OR">
+            <if test="nameValue != null">
+                MENU_NAME LIKE CONCAT('%', #{nameValue}, '%')
+            </if>
+            <if test="categoryValue != null">
+                AND CATEGORY_CODE = #{categoryValue}
+            </if>
+        </trim>
+    </select>
+    <update id="modifyMenu" parameterType="hashmap">
+        <!--
+            이 쿼리문은 모든 컬럼에 대해 수정할 값을 입력한다는 가정하에
+            작성이 되었다. 값을 입력한 일부 컬럼만 변경하고 싶다면?
+            <if>태그를 사용해서 일부 컬럼만 수정하게 바꿔보자
+        -->
+<!--        UPDATE-->
+<!--            TBL_MENU-->
+<!--        SET-->
+<!--            MENU_NAME = #{name} &lt;!&ndash;맵에 담겨놓은 키값&ndash;&gt;-->
+<!--        ,   CATEGORY_CODE = #{categoryCode}-->
+<!--        ,   ORDERABLE_STATUS = #{orderableStatus}-->
+<!--        WHERE-->
+<!--            MENU_CODE = #{code}-->
+<!--        SET 과 , 이 문제 -->
+<!--        UPDATE TBL_MENU-->
+<!--        <if test="name != null and name != ''" >-->
+<!--            SET MENU_NAME = #{name}-->
+<!--        </if>-->
+<!--        <if test="categoryCode != null and categoryCode gt 0 ">-->
+<!--            , CATEGORY_CODE = #{categoryCode}-->
+<!--        </if>-->
+<!--        <if test="orderableStatus != null and orderableStatus !=''">-->
+<!--            ,ORDERABLE_STATUS = #{orderableStatus}-->
+<!--        </if>-->
+
+        <!--<set>엘리먼트는 set을 붙여주고 구분자(,)를 제거해주는 역할을 한다-->
+<!--        UPDATE TBL_MENU-->
+<!--        <set>-->
+<!--            <if test="name != null and name != ''" >-->
+<!--                MENU_NAME = #{name}-->
+<!--            </if>-->
+<!--            <if test="categoryCode != null and categoryCode gt 0 ">-->
+<!--                    , CATEGORY_CODE = #{categoryCode}-->
+<!--            </if>-->
+<!--            <if test="orderableStatus != null and orderableStatus !=''">-->
+<!--                    ,ORDERABLE_STATUS = #{orderableStatus}-->
+<!--            </if>-->
+<!--        </set>-->
+<!--            WHERE MENU_CODE = #{code}-->
+
+        UPDATE TBL_MENU
+        <trim prefix="SET" prefixOverrides=",">
+            <if test="name != null and name != ''" >
+                MENU_NAME = #{name}
+            </if>
+            <if test="categoryCode != null and categoryCode gt 0 ">
+                , CATEGORY_CODE = #{categoryCode}
+            </if>
+            <if test="orderableStatus != null and orderableStatus !=''">
+                ,ORDERABLE_STATUS = #{orderableStatus}
+            </if>
+        </trim>
+        WHERE MENU_CODE = #{code}
+    </update>
+
+        </mapper>
+
+        <!--경로가 동일해야하고 nameSpace 속성을 section01.dynamic.DynamicSqlMapper 여야합니다-->
+<!--if문 코드가 유동적으로 바뀐다해서 동적 sql 입니다.-->
+<!--DynamicSqlMapper 의 메서드명이 데이터베이스의 id입니다.-->
