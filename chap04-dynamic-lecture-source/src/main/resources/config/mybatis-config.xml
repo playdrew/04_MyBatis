@@ -29,5 +29,6 @@
     <!--mapper 한 다음에 파일명을 썼는데 패키지란 속성이 있어요 패키지의 장점은 각자 mapper 해가지고 용운 이정매퍼할 필요없이 하위파일들은 알아서 등록되므로 생략가능하게됩니다.-->
     <mappers>
         <package name="com.ohgiraffers.section01.dynamic"/>
+        <package name="com.practice.model.dao"/>
     </mappers>
 </configuration>

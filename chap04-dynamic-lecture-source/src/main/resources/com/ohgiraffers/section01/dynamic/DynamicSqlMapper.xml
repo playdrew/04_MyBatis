@@ -283,8 +283,7 @@
         </trim>
         WHERE MENU_CODE = #{code}
     </update>
-
-        </mapper>
+</mapper>
 
         <!--경로가 동일해야하고 nameSpace 속성을 section01.dynamic.DynamicSqlMapper 여야합니다-->
 <!--if문 코드가 유동적으로 바뀐다해서 동적 sql 입니다.-->
