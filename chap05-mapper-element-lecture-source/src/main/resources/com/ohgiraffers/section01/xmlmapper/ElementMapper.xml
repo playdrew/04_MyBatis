@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.section01.xmlmapper.ElementMapper">
+    <!--comment.
+            Mapper.xml 파일에서 사용할 수 있는 태그 엘리먼트는 총 9가지
+            <cache> , <cache-ref> , <resultMap> , <parameterMap>
+            <sql> , <select> , <insert> , <update> , <delete>
+        -->
+    <!--comment.
+        1.eviction : 캐시 알고리즘 ( 캐시가 어떻게 동작할지 정의) 디폴트 설정 LRU
+        2.flushInterval : 설정된 캐시를 얼마나 유지할 지 밀리초(1000이1초)로 설정
+        3.size : 캐시에 저장될 객체의 수. 디폴트 1024
+        4.readonly : 읽기만 가능한 경우 캐시에 저장된 데이터 변경이 되지 않음
+        - 캐시란 ? 데이터나 값을 미리 복사해둔 임시의 장소를 의미한다.
+        - 동일한 값을 DB에서 꺼내오는 과정을 생략하고 싶을때 사용한다.
+        - 캐시설정은 많이 반복될 작업에 적용하는 것이 효과적이다.
+        - 캐시설정에서 벗어나고 싶은 경우 useCache = false 를 사용하면 된다.
+
+        캐시는 구글에 로그인하면 정보가 저장 다시 접속시 로그인된 상태가 유지
+        어딘가에 미리 정보가 저장되어있다는 것이에요 로그인 또 할필요없이 로그인이 유지되는 것처럼요
+        dao 에서 데이터베이스에 요청을 보내면 갔다온 시간이 있는데 캐시는 도출된 값을 캐시라는 공간에 저장해요
+        또한번 요청을 했을때 db로 안가고 캐시라는 공간으로 가요 캐시에서 저장된 값을 꺼내와요. 속도적 측면에서 빨라요
+        조회를 많이 하는 곳에 캐시설정을 해두면 좋습니다.
+
+
+        -->
+    <cache eviction="LRU" flushInterval="1000" size="512" readOnly="true"/>
+    <select id="selectCacheTest" resultType="java.lang.String" useCache="false">
+            SELECT
+                MENU_NAME
+            FROM
+                TBL_MENU
+        <!--이 쿼리문이 실행되면 메뉴네임이 반환된다-->
+    </select>
+    <!--comment. <resultMap> 엘리먼트
+                1. DB 에서 조회한 결과 데이터를 자바객체에 매핑하는 방법을 정의하는 엘리먼트
+                2. resultMap 은 myBatis 에서 가장 중요하고 강력한 엘리먼트이다.
+                3. JDBC 의 ResultSet 에서 데이터를 가져올 때 작성되었던 코드를 혁신적으로 줄여주는 역할
+                4. Join 과 같은 매핑은 굉장히 많은 코드를 필요로 하는데 ResultMap 이 효율적으로 바꿔준다.
+                -->
+    <!--comment. resultMap의 속성
+                1. id : 매핑 구문에서 매핑을 할 때 구분하기 위한 ID 역할
+                2. type : 결과 매핑을 적용하는 대상 객체 타입(= 매핑 구분의 결과 데이터를 저장할 JAVA 타입)
+                3. extends : 자바의 상속처럼 기존에 정의 된 resultMap 을 상속받아 확장할 수 있다.
+
+                필요한 자바객체를 만들기 위해 common 에 MenuDTO 클래스를 만들어요
+                -->
+    <resultMap id="menuResultMap1" type="com.ohgiraffers.common.MenuDTO">
+<!--        property 는 메뉴dto의 자바필드를 의미하고 column 과 연관짓습니다-->
+<!--        id는 pk값을 의미합니다-->
+        <id property="code" column="MENU_CODE"/>
+        <result property="name" column="MENU_NAME"/>
+        <result property="price" column="MENU_PRICE"/>
+        <result property="categoryCode" column="CATEGORY_CODE"/>
+        <!--        객체와 DB에서 조회한 값을 매칭시키는것이 RESULTMAP 입니다. 일부로
+            ORDERABLE_STATUS 는 작성안했고 속성중에 EXTENDS를 확인해보겠습니다.-->
+    </resultMap>
+<!--    menuResultMap2 는 extend를 통해 resultMap1의 자식이 되었으므로 위에 있는 것들을 사용할 수 있게 됩니다.-->
+    <resultMap id="menuResultMap2" type="com.ohgiraffers.common.MenuDTO" extends="menuResultMap1">
+        <result property="orderableStatus" column="ORDERABLE_STATUS"/>
+    </resultMap>
+<!--    필요할때마다 RESULTMAP을 다량으로 만들기 보다 필요시에 상속해서 만들어놓으면 좀더 유동적인 코드가 됩니다.-->
+    <select id="selectResultMapTest" resultMap="menuResultMap2">
+        SELECT
+            MENU_CODE,
+            MENU_NAME,
+            MENU_PRICE,
+            CATEGORY_CODE,
+            ORDERABLE_STATUS
+        FROM
+            TBL_MENU
+        WHERE
+            ORDERABLE_STATUS = 'Y'
+    </select>
+<!--    comment. resultMap 의 하위 엘리먼트
+                1. id : pk 컬럼을 매핑하기 위한 태그 엘리먼트
+                2. result : pk 가 아닌 컬럼을 매핑하기 위한 엘리먼트
+                3. constructor : 결과를 매핑할 클래스의 생성자를 통해 매핑하기 위한 엘리먼트
+                4. association : 관계 맺어진 테이블 간의 1:1 포함 관계인 경우 사용
+                5. collection : 관계 맺어진 테이블 간의 1:M 포함 관계인 경우 사용
+                하위엘리먼트예시 : resultMap 내부에 포함된 엘리먼트 -->
+
+<!--    적은 쪽에서 많은 쪽으로 바라보는데요(->) 데이터베이스관점과 객체 관점을 분리해서 바야해요 . -->
+<!--    comment. constructor 엘리먼트
+            <idArg>,<arg> 하위 엘리먼트를 가지고 있다. argument 의 약자 의미는 전달인자
+            <idArg> resultMap 의 id <arg>는 result 를 의미합니다.
+            ResultMap 의 id result 엘리먼트는 setter를 사용하기 때문에
+            property 를 지정해야 한다.
+            생성자를 사용해서 값을 집어넣어 주기 때문에
+            순서와 타입을 맞춰서 작성해야 한다.-->
+    <resultMap id="menuResultMap3" type="com.ohgiraffers.common.MenuDTO">
+        <constructor>
+            <idArg column="MENU_CODE" javaType="_int"/>
+            <arg column="MENU_NAME" javaType="string"/>
+            <arg column="MENU_PRICE" javaType="_int"/>
+            <arg column="CATEGORY_CODE" javaType="_int"/>
+            <arg column="ORDERABLE_STATUS" javaType="string"/>
+        </constructor>
+    </resultMap>
+    <select id="selectResultMapConstructor" resultMap="menuResultMap3">
+        SELECT
+            *
+        FROM
+            TBL_MENU
+        WHERE
+            ORDERABLE_STATUS = 'Y';
+    </select>
+<!--    comment. association
+                   14번 메뉴가 있어요 메뉴의 카테고리 테이블의 3번은 디저트인데 자바 menuDTO에는 categoryCode = 3번이란 정보는 있지만 디저트와 NULL 은 없어요
+                   3번이 어짜피 디저트 NULL을 의미하는데 이들의 정보를 통째로 가지고 있게끔 만들고 싶은 것이에요 디저트라는 값과 한식 양식도 있기에
+                   이들도 데이터에 나오게 하고 싶다는 거에요 -->
+<!--    comment. association
+                   resultMap 을 구성하는 방법 1. 따로 만든 result 이용
+                   -->
+<!--    따로 만든 result를 연결-->
+<!--    <resultMap id="categoryResultMap" type="com.ohgiraffers.common.CategoryDTO">-->
+<!--        <id property="code" column="CATEGORY_CODE"/>-->
+<!--        <result property="name" column="CATEGORY_NAME"/>-->
+<!--        <result property="refCategoryCode" column="REF_CATEGORY_CODE"/>-->
+<!--    </resultMap>-->
+<!--    <resultMap id="MenuAndCategoryResultMap" type="com.ohgiraffers.common.MenuAndCategoryDTO">-->
+<!--        <id property="code" column="MENU_CODE"/>-->
+<!--        <result property="name" column="MENU_NAME"/>-->
+<!--        <result property="price" column="MENU_PRICE"/>-->
+<!--        <result property="orderableStatus" column="ORDERABLE_STATUS"/>-->
+<!--        <association property="categoryDTO" resultMap="categoryResultMap"/>-->
+<!--    </resultMap>-->
+
+
+<!--    comment. association
+                resultMap을 구성하는 방법 2. association 내부에 id와 result 이용-->
+<!--    따로 만들어진 resultMap을 글거쓰는 것이아닌 방식-->
+    <resultMap id="MenuAndCategoryResultMap" type="com.ohgiraffers.common.MenuAndCategoryDTO">
+        <id property="code" column="MENU_CODE"/>
+        <result property="name" column="MENU_NAME"/>
+        <result property="price" column="MENU_PRICE"/>
+        <result property="orderableStatus" column="ORDERABLE_STATUS"/>
+<!--        자바타입에 풀카테고리명을 작성후 RESULTMAP을 ASSOCIATION 내부에 작성하는 느낌-->
+        <association property="categoryDTO" javaType="com.ohgiraffers.common.CategoryDTO">
+            <id property="code" column="CATEGORY_CODE"/>
+            <result property="name" column="CATEGORY_NAME"/>
+            <result property="refCategoryCode" column="REF_CATEGORY_CODE"/>
+        </association>
+    </resultMap>
+    <select id="selectResultMapAssociationTest" resultMap="MenuAndCategoryResultMap">
+        SELECT
+            A.MENU_CODE,
+            A.MENU_NAME,
+            A.ORDERABLE_STATUS,
+            A.MENU_PRICE,
+            B.CATEGORY_CODE,
+            B.CATEGORY_NAME,
+            B.REF_CATEGORY_CODE
+        FROM
+            TBL_MENU A
+        JOIN
+            TBL_CATEGORY B ON (A.CATEGORY_CODE = B.CATEGORY_CODE)
+        WHERE
+            A.ORDERABLE_STATUS = 'Y'
+    </select>
+<!--    지금까진 메뉴의 관점으로 봤어요 메뉴1개 카테고리1개 근데 카테고리는 많은 메뉴를 지닐수 있어요 이기준으로 봐요 -->
+    <resultMap id="categoryAndMenuResultMap" type="com.ohgiraffers.common.CategoryAndMenuDTO">
+        <id property="code" column="CATEGORY_CODE"/>
+        <result property="name" column="CATEGORY_NAME"/>
+        <result property="refCategoryCode" column="REF_CATEGORY_CODE"/>
+<!--        ofType 이 메뉴리스트가 무엇으로 이루어져있는지-->
+        <collection property="menuList" ofType="com.ohgiraffers.common.MenuDTO">
+            <id property="code" column="MENU_CODE"/>
+            <result property="name" column="MENU_NAME"/>
+            <result property="price" column="MENU_PRICE"/>
+            <result property="orderableStatus" column="ORDERABLE_STATUS"/>
+        </collection>
+    </resultMap>
+    <select id="selectResultMapCollectionTest" resultMap="categoryAndMenuResultMap">
+        SELECT
+            A.CATEGORY_CODE,
+            A.CATEGORY_NAME,
+            A.REF_CATEGORY_CODE,
+            B.MENU_CODE,
+            B.MENU_NAME,
+            B.MENU_PRICE,
+            B.ORDERABLE_STATUS
+        FROM
+            TBL_CATEGORY A
+        LEFT JOIN
+            TBL_MENU B ON (A.CATEGORY_CODE = B.CATEGORY_CODE)
+        ORDER BY
+            A.CATEGORY_CODE
+    </select>
+<!--    comment. <sql> : id가 required 반드시 필요하다 -->
+<!--    comment. <sql> 각 매핑 구문에서 공통적으로 사용할 수 있는
+                       SQL 문자열의 일부를 정의하고 필요시 재사용하기 위한 목적-->
+<!--    컬럼들을 sql 태그내에 작성한뒤에 전체를 조회해서 사용한다 include 태그 사용-->
+<!--    반복되는 것들을 자주쓰이는 것을 include 를 통해 불러온다 ref 연결한다라는 의미를 지녔다.,-->
+    <sql id="menuColumn">
+        MENU_CODE,
+        MENU_NAME,
+        MENU_PRICE,
+        CATEGORY_CODE,
+        ORDERABLE_STATUS
+    </sql>
+    <select id="selectSqlTest" resultMap="menuResultMap2" resultType="com.ohgiraffers.common.MenuDTO">
+        SELECT
+            <include refid="menuColumn"/>
+        FROM
+            TBL_MENU
+    </select>
+<!--    comment. 가장 많이 쓰이고, 가장 중요한 속성
+            1.parameterType 속성
+            - 파리미터 타입을 의미한다 이미 정의 된 타입(hashmap,class)등등을
+            - 사용할 수 있고, class 를 사용할 시에 주의점은 full-name 을
+            - 기술해야한다.
+            2.resultType 속성
+            - 쿼리문 실행후 반환되는 값에 대해서
+            - 매핑구문의 결과 행(row)를 반환할 타입이다.
+            - 여러 메뉴의 경우 List 가 아닌 1개의 행을 기준으로 하기 때문에
+            - 1개의 행에 해당하는 MenuDTO 가 된다.
+            3.resultMap 속성
+            - 쿼리문 수행의 결과가 우리가 지정한 JAVA 객체 타입에
+            - 매핑을 시키는 아주 중요한 속성
+            -->
+</mapper>
