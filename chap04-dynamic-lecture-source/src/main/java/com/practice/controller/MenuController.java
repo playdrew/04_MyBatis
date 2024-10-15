@@ -21,6 +21,7 @@ public class MenuController {
         List<MenuDTO> selectMenuByMenuPrice = menuService.selectMenuByMenuPrice(price);
 
         if(selectMenuByMenuPrice != null && selectMenuByMenuPrice.size()>0){
+            System.out.println("조회중입니다..");
             printResult.selectByMenuPrice(selectMenuByMenuPrice);
         }else{
             printResult.errorMessage("selectByPrice");

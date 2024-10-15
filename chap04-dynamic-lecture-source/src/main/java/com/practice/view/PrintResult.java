@@ -28,6 +28,8 @@ public class PrintResult {
 
     public void selectByMenuPrice(List<MenuDTO> menuDTOList) {
 
+        System.out.println("조회에 성공하였습니다.");
+
         for(MenuDTO menuDTO : menuDTOList){
             System.out.println(menuDTO);
         }
